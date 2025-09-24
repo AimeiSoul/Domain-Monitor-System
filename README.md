@@ -137,7 +137,7 @@ python app.py
 **演示站点**：https://domain.aimeisoul.serv00.net
 
 （demo用户名：admin）
-（demo密码：）
+（demo密码：YKiI-Jx*{5）
 
 ---
 
