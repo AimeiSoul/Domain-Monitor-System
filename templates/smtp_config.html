@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMTP配置 - 域名监控系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- 添加网站图标 -->
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Logo" height="30" class="d-inline-block align-text-top">
+                域名监控
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">欢迎, {{ session.username }}</span>
+                <a class="nav-link" href="{{ url_for('dashboard') }}">仪表盘</a>
+                <a class="nav-link" href="{{ url_for('index') }}">首页</a>
+                <a class="nav-link" href="{{ url_for('logout') }}">退出</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="mb-0">SMTP邮件配置</h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="smtpConfigForm">
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enabled" name="enabled" {{ 'checked' if config.enabled else '' }}>
+                                <label class="form-check-label" for="enabled">启用邮件提醒</label>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="mail_server" class="form-label">SMTP服务器</label>
+                                    <input type="text" class="form-control" id="mail_server" name="mail_server" value="{{ config.mail_server }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="mail_port" class="form-label">SMTP端口</label>
+                                    <input type="number" class="form-control" id="mail_port" name="mail_port" value="{{ config.mail_port }}" required>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3 form-check">
+                                <input class="form-check-input" type="checkbox" id="mail_use_tls" name="mail_use_tls" {{ 'checked' if config.mail_use_tls else '' }}>
+                                <label class="form-check-label" for="mail_use_tls">使用TLS加密</label>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="mail_username" class="form-label">SMTP用户名</label>
+                                <input type="text" class="form-control" id="mail_username" name="mail_username" value="{{ config.mail_username }}" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="mail_password" class="form-label">SMTP密码</label>
+                                <input type="password" class="form-control" id="mail_password" name="mail_password" value="{{ config.mail_password }}" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="mail_default_sender" class="form-label">发件人邮箱</label>
+                                <input type="email" class="form-control" id="mail_default_sender" name="mail_default_sender" value="{{ config.mail_default_sender }}" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="admin_email" class="form-label">管理员邮箱（接收提醒）</label>
+                                <input type="email" class="form-control" id="admin_email" name="admin_email" value="{{ config.admin_email }}" required>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <button type="button" class="btn btn-outline-secondary" id="testSmtpBtn">
+                                    <i class="bi bi-envelope-check"></i> 测试配置
+                                </button>
+                                <div>
+                                    <button type="button" class="btn btn-secondary" onclick="window.history.back()">取消</button>
+                                    <button type="submit" class="btn btn-primary">保存配置</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 保存SMTP配置
+            const smtpConfigForm = document.getElementById('smtpConfigForm');
+            if (smtpConfigForm) {
+                smtpConfigForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const formData = new FormData(this);
+                    // 将复选框值转换为布尔值
+                    formData.set('mail_use_tls', document.getElementById('mail_use_tls').checked);
+                    formData.set('enabled', document.getElementById('enabled').checked);
+                    
+                    // 如果使用QQ邮箱和端口465，自动禁用TLS
+                    const mailServer = document.getElementById('mail_server').value;
+                    const mailPort = document.getElementById('mail_port').value;
+                    if (mailServer.includes('qq.com') && mailPort == 465) {
+                        document.getElementById('mail_use_tls').checked = false;
+                        formData.set('mail_use_tls', 'false');
+                    }
+                    
+                    fetch('/update_smtp_config', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('SMTP配置保存成功！');
+                        } else {
+                            alert('保存失败: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('保存失败，请重试');
+                    });
+                });
+            }
+            
+            // 当服务器或端口改变时，自动调整TLS设置
+            document.getElementById('mail_server').addEventListener('change', adjustTlsSetting);
+            document.getElementById('mail_port').addEventListener('change', adjustTlsSetting);
+            
+            function adjustTlsSetting() {
+                const mailServer = document.getElementById('mail_server').value;
+                const mailPort = document.getElementById('mail_port').value;
+                
+                if (mailServer.includes('qq.com') && mailPort == 465) {
+                    document.getElementById('mail_use_tls').checked = false;
+                    // 显示提示信息
+                    if (!document.getElementById('qq-smtp-hint')) {
+                        const hint = document.createElement('div');
+                        hint.id = 'qq-smtp-hint';
+                        hint.className = 'alert alert-info mt-2';
+                        hint.innerHTML = '检测到QQ邮箱和端口465，已自动禁用TLS（使用SSL连接）';
+                        document.getElementById('mail_use_tls').closest('.mb-3').appendChild(hint);
+                    }
+                } else {
+                    // 移除提示信息
+                    const hint = document.getElementById('qq-smtp-hint');
+                    if (hint) {
+                        hint.remove();
+                    }
+                }
+            }
+            
+            // 页面加载时也检查一次
+            adjustTlsSetting();
+            
+            // 测试SMTP配置
+            const testSmtpBtn = document.getElementById('testSmtpBtn');
+            if (testSmtpBtn) {
+                testSmtpBtn.addEventListener('click', function() {
+                    if (!confirm('将发送测试邮件到管理员邮箱，确认继续吗？')) {
+                        return;
+                    }
+                    
+                    // 先保存配置
+                    const formData = new FormData(document.getElementById('smtpConfigForm'));
+                    formData.set('mail_use_tls', document.getElementById('mail_use_tls').checked);
+                    formData.set('enabled', document.getElementById('enabled').checked);
+                    
+                    fetch('/update_smtp_config', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // 然后测试配置
+                            return fetch('/test_smtp_config', {
+                                method: 'POST'
+                            });
+                        } else {
+                            throw new Error('保存配置失败: ' + data.message);
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('测试邮件发送成功！请检查您的邮箱。');
+                        } else {
+                            alert('测试失败: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('测试失败: ' + error.message);
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html>

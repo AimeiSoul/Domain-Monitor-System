@@ -1,0 +1,424 @@
+/* 全局样式 */
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #2c3e50;
+    --success-color: #2ecc71;
+    --warning-color: #f39c12;
+    --danger-color: #e74c3c;
+    --light-bg: #f8f9fa;
+    --dark-text: #2c3e50;
+    --light-text: #7f8c8d;
+    --card-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background-color: var(--light-bg);
+    color: var(--dark-text);
+    line-height: 1.6;
+}
+
+/* 导航栏样式 - 修改为更紧凑 */
+.navbar {
+    background: linear-gradient(135deg, var(--secondary-color), #1a2530);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 0.5rem 1rem !important; /* 减少上下内边距 */
+    min-height: 60px; /* 设置最小高度 */
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.3rem !important; /* 减小字体大小 */
+    display: flex;
+    align-items: center;
+    padding: 0.2rem 0 !important; /* 减少内边距 */
+}
+
+.navbar-brand img {
+    margin-right: 8px;
+    height: 24px !important; /* 减小logo大小 */
+}
+
+.navbar-text {
+    color: #ecf0f1 !important;
+    font-size: 0.9rem;
+    padding: 0.3rem 0 !important;
+}
+
+.nav-link {
+    color: #ecf0f1 !important;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    padding: 0.4rem 0.8rem !important; /* 减少内边距 */
+    border-radius: 4px;
+    font-size: 0.9rem !important; /* 减小字体大小 */
+}
+
+.nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+/* 导航栏容器 */
+.navbar > .container {
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+/* 导航栏折叠按钮样式 */
+.navbar-toggler {
+    padding: 0.25rem 0.5rem;
+    font-size: 1rem;
+}
+
+/* 主容器 */
+.container {
+    max-width: 1200px;
+    padding: 15px;
+}
+
+/* 标题样式 */
+h1 {
+    color: var(--secondary-color);
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    position: relative;
+    padding-bottom: 12px;
+    font-size: 1.8rem;
+}
+
+h1:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+    border-radius: 2px;
+}
+
+/* 卡片样式 */
+.domain-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: var(--card-shadow);
+    border: none;
+    transition: all 0.3s ease;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.domain-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+}
+
+.card-body {
+    padding: 1.2rem;
+}
+
+.card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+}
+
+/* 状态徽章 */
+.badge {
+    font-weight: 600;
+    padding: 0.4rem 0.7rem;
+    border-radius: 50px;
+    font-size: 0.7rem;
+}
+
+.bg-success {
+    background-color: var(--success-color) !important;
+}
+
+.bg-warning {
+    background-color: var(--warning-color) !important;
+}
+
+.bg-danger {
+    background-color: var(--danger-color) !important;
+}
+
+/* 进度圈容器 */
+.progress-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 1.2rem 0;
+}
+
+/* 进度圈样式 */
+.progress-circle {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    margin: 0 auto;
+    background: conic-gradient(
+        var(--status-color) calc(var(--percent) * 3.6deg), 
+        #ecf0f1 calc(var(--percent) * 3.6deg)
+    );
+}
+
+.progress-circle::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--dark-text);
+    z-index: 1;
+}
+
+.progress-container > div:last-child {
+    margin-top: 8px;
+    font-weight: 600;
+    color: var(--light-text);
+    font-size: 0.9rem;
+}
+
+/* 详情区域样式 */
+.domain-details {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-color);
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.domain-details p {
+    margin-bottom: 0.5rem;
+    display: flex;
+}
+
+.domain-details strong {
+    min-width: 70px;
+    display: inline-block;
+    color: var(--secondary-color);
+    font-size: 0.85rem;
+}
+
+/* 按钮样式 */
+.btn {
+    border-radius: 5px;
+    font-weight: 600;
+    padding: 0.4rem 0.8rem;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color), #2980b9);
+    border: none;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+}
+
+.btn-outline-secondary {
+    border-color: #bdc3c7;
+    color: #7f8c8d;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #ecf0f1;
+    border-color: #bdc3c7;
+    color: var(--dark-text);
+}
+
+.btn-outline-primary, .btn-outline-danger {
+    border-width: 1.5px;
+    font-size: 0.8rem;
+}
+
+/* 操作按钮容器 */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 1rem;
+}
+
+/* 登录页面样式 */
+.login-body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 15px;
+}
+
+.login-body .card {
+    border-radius: 12px;
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+    border: none;
+}
+
+.login-body .card-body {
+    padding: 2rem;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .navbar {
+        padding: 0.4rem 0.8rem !important;
+    }
+    
+    .navbar-brand {
+        font-size: 1.1rem !important;
+    }
+    
+    .progress-circle {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .progress-text {
+        font-size: 0.9rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .domain-details p {
+        flex-direction: column;
+    }
+    
+    .domain-details strong {
+        min-width: auto;
+        margin-bottom: 0.2rem;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+        margin-bottom: 1.2rem;
+    }
+}
+
+/* PC端背景 */
+@media (min-width: 992px) {
+    body {
+        background: url('../img/pc.jpg') no-repeat center center fixed;
+        background-size: cover;
+    }
+    
+    .domain-card {
+        backdrop-filter: blur(10px);
+        background-color: rgba(255, 255, 255, 0.95);
+    }
+}
+
+/* 移动端背景 */
+@media (max-width: 991px) {
+    body {
+        background: url('../img/pe.jpg') no-repeat center center fixed;
+        background-size: cover;
+    }
+    
+    /* 移动端导航栏调整 */
+    .navbar-collapse {
+        background-color: var(--secondary-color);
+        padding: 0.5rem 1rem;
+        border-radius: 0 0 5px 5px;
+        margin-top: 5px;
+    }
+}
+
+/* 仪表盘特定样式 */
+.dashboard-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1rem;
+}
+
+/* 模态框样式 */
+.modal-content {
+    border-radius: 10px;
+    border: none;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, var(--secondary-color), #1a2530);
+    color: white;
+    border-top-left-radius: 10px !important;
+    border-top-right-radius: 10px !important;
+    padding: 0.8rem 1rem !important;
+}
+
+.modal-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.modal-body {
+    padding: 1rem;
+}
+
+.modal-footer {
+    padding: 0.8rem 1rem;
+}
+
+/* 表单样式 */
+.form-label {
+    font-weight: 600;
+    color: var(--secondary-color);
+    margin-bottom: 0.4rem;
+    font-size: 0.9rem;
+}
+
+.form-control {
+    border-radius: 5px;
+    padding: 0.6rem;
+    border: 1px solid #dcdfe6;
+    transition: all 0.3s;
+    font-size: 0.9rem;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.2);
+}
+
+/* 空状态提示 */
+.alert-info {
+    background-color: rgba(52, 152, 219, 0.1);
+    border-color: rgba(52, 152, 219, 0.2);
+    color: var(--primary-color);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    font-size: 0.9rem;
+}

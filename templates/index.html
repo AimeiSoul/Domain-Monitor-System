@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>域名监控系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Logo" height="30" class="d-inline-block align-text-top">
+                域名监控
+            </a>
+            <div class="navbar-nav ms-auto">
+                {% if session.username %}
+                    <span class="navbar-text me-3">欢迎, {{ session.username }}</span>
+                    {% if session.username == 'admin' %}
+                    <a class="nav-link" href="{{ url_for('smtp_config') }}">SMTP配置</a>
+                    {% endif %}
+                    <a class="nav-link" href="{{ url_for('dashboard') }}">仪表盘</a>
+                    <a class="nav-link" href="{{ url_for('logout') }}">退出</a>
+                {% else %}
+                    <a class="nav-link" href="{{ url_for('login') }}">登录</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <div class="container mt-4">
+        <h1>域名监控列表</h1>
+        
+        <!-- 域名卡片 -->
+        <div class="row" id="domain-list">
+            {% for domain in domains %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card domain-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title">{{ domain.name }}</h5>
+                            <span class="badge bg-{{ domain.status() }}">
+                                {% if domain.status() == 'success' %}正常
+                                {% elif domain.status() == 'warning' %}警告
+                                {% else %}危险
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <div class="progress-container">
+                            <div class="progress-circle" data-percent="{{ domain.progress_percentage() }}" data-status="{{ domain.status() }}">
+                                <span class="progress-text">{{ domain.progress_percentage() }}%</span>
+                            </div>
+                            <div>剩余 {{ domain.days_remaining() }} 天</div>
+                        </div>
+
+                        <!-- 在Index页面中保持折叠按钮和折叠内容 -->
+                        <button class="btn btn-sm btn-outline-secondary w-100 details-toggle" data-bs-toggle="collapse" data-bs-target="#details-{{ domain.id }}">
+                            显示详细信息 <i class="bi bi-chevron-down"></i>
+                        </button>
+
+                        <div class="collapse mt-3" id="details-{{ domain.id }}">
+                            <div class="domain-details">
+                                <p><strong>注册商:</strong> {{ domain.registrar or '未知' }}</p>
+                                <p><strong>注册日期:</strong> {{ domain.registration_date.strftime('%Y-%m-%d') if domain.registration_date else '未知' }}</p>
+                                <p><strong>到期日期:</strong> {{ domain.expiration_date.strftime('%Y-%m-%d') }}</p>
+                                <p><strong>续费周期:</strong> {{ domain.renewal_period or '未知' }}</p>
+                                <p><strong>续费价格:</strong> {{ domain.renewal_price or '未知' }} {{ domain.currency }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12 text-center">
+                <div class="alert alert-info">暂无域名数据</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

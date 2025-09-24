@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>域名管理仪表盘</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Logo" height="30" class="d-inline-block align-text-top">
+                域名监控
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">欢迎, {{ session.username }}</span>
+                {% if session.username == 'admin' %}
+                <a class="nav-link" href="{{ url_for('smtp_config') }}">SMTP配置</a>
+                {% endif %}
+                <a class="nav-link" href="{{ url_for('index') }}">首页</a>
+                <a class="nav-link" href="{{ url_for('logout') }}">退出</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主要内容 -->
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>域名管理</h1>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDomainModal">
+                <i class="bi bi-plus-circle"></i> 添加域名
+            </button>
+        </div>
+        
+        <!-- 域名卡片 -->
+        <div class="row" id="domain-list">
+            {% for domain in domains %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card domain-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title">{{ domain.name }}</h5>
+                            <span class="badge bg-{{ domain.status() }}">
+                                {% if domain.status() == 'success' %}正常
+                                {% elif domain.status() == 'warning' %}警告
+                                {% else %}危险
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <div class="progress-container">
+                            <div class="progress-circle" data-percent="{{ domain.progress_percentage() }}" data-status="{{ domain.status() }}">
+                                <span class="progress-text">{{ domain.progress_percentage() }}%</span>
+                            </div>
+                            <div>剩余 {{ domain.days_remaining() }} 天</div>
+                        </div>
+                        
+                        <div class="domain-details">
+                            <p><strong>注册商:</strong> {{ domain.registrar or '未知' }}</p>
+                            <p><strong>注册日期:</strong> {{ domain.registration_date.strftime('%Y-%m-%d') if domain.registration_date else '未知' }}</p>
+                            <p><strong>到期日期:</strong> {{ domain.expiration_date.strftime('%Y-%m-%d') }}</p>
+                            <p><strong>续费周期:</strong> {{ domain.renewal_period or '未知' }}</p>
+                            <p><strong>续费价格:</strong> {{ domain.renewal_price or '未知' }} {{ domain.currency }}</p>
+                            <p><strong>警告阈值:</strong> {{ domain.warning_threshold }} 天</p>
+                            <p><strong>危险阈值:</strong> {{ domain.danger_threshold }} 天</p>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="btn btn-outline-primary edit-domain" data-domain-id="{{ domain.id }}" data-bs-toggle="modal" data-bs-target="#editDomainModal">
+                                <i class="bi bi-pencil"></i> 编辑
+                            </button>
+                            {% if domain.renewal_url %}
+                            <a href="{{ domain.renewal_url }}" target="_blank" class="btn btn-outline-success">
+                            <i class="bi bi-arrow-repeat"></i> 续费
+                            </a>
+                            {% else %}
+                            <button class="btn btn-outline-secondary" disabled>
+                                <i class="bi bi-arrow-repeat"></i> 续费
+                            </button>
+                            {% endif %}
+                            <button class="btn btn-outline-danger delete-domain" data-domain-id="{{ domain.id }}">
+                                <i class="bi bi-trash"></i> 删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12 text-center">
+                <div class="alert alert-info">暂无域名数据，请添加域名</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 添加域名模态框 -->
+    <div class="modal fade" id="addDomainModal" tabindex="-1" aria-labelledby="addDomainModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addDomainModalLabel">添加新域名</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="addDomainForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">域名</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="registrar" class="form-label">注册商</label>
+                            <input type="text" class="form-control" id="registrar" name="registrar">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="registration_date" class="form-label">注册日期</label>
+                                <input type="date" class="form-control" id="registration_date" name="registration_date">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="expiration_date" class="form-label">到期日期</label>
+                                <input type="date" class="form-control" id="expiration_date" name="expiration_date" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="renewal_period" class="form-label">续费周期</label>
+                                <input type="text" class="form-control" id="renewal_period" name="renewal_period" placeholder="例如: 1 (自动添加'年')">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="renewal_price" class="form-label">续费价格</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="renewal_price" name="renewal_price">
+                                    <select class="form-select" id="currency" name="currency" style="max-width: 100px;">
+                                        <option value="USD">USD</option>
+                                        <option value="CNY">CNY</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="JPY">JPY</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="warning_threshold" class="form-label">警告阈值(天)</label>
+                                <input type="number" class="form-control" id="warning_threshold" name="warning_threshold" value="30" min="1">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="danger_threshold" class="form-label">危险阈值(天)</label>
+                                <input type="number" class="form-control" id="danger_threshold" name="danger_threshold" value="7" min="1">
+                            </div>
+                        </div>
+                        <!-- 在添加域名模态框中添加续费URL字段 -->
+                        <div class="mb-3">
+                            <label for="renewal_url" class="form-label">续费网址</label>
+                            <input type="url" class="form-control" id="renewal_url" name="renewal_url" placeholder="https://...">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">添加</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑域名模态框 -->
+    <div class="modal fade" id="editDomainModal" tabindex="-1" aria-labelledby="editDomainModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editDomainModalLabel">编辑域名</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="editDomainForm">
+                    <input type="hidden" id="edit_domain_id" name="domain_id">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="edit_name" class="form-label">域名</label>
+                            <input type="text" class="form-control" id="edit_name" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_registrar" class="form-label">注册商</label>
+                            <input type="text" class="form-control" id="edit_registrar" name="registrar">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="edit_registration_date" class="form-label">注册日期</label>
+                                <input type="date" class="form-control" id="edit_registration_date" name="registration_date">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="edit_expiration_date" class="form-label">到期日期</label>
+                                <input type="date" class="form-control" id="edit_expiration_date" name="expiration_date" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="edit_renewal_period" class="form-label">续费周期</label>
+                                <input type="text" class="form-control" id="edit_renewal_period" name="renewal_period" placeholder="例如: 1年">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="edit_renewal_price" class="form-label">续费价格</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="edit_renewal_price" name="renewal_price">
+                                    <select class="form-select" id="edit_currency" name="currency" style="max-width: 100px;">
+                                        <option value="USD">USD</option>
+                                        <option value="CNY">CNY</option>
+                                        <option value="EUR">EUR</option>
+                                        <option value="JPY">JPY</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="edit_warning_threshold" class="form-label">警告阈值(天)</label>
+                                <input type="number" class="form-control" id="edit_warning_threshold" name="warning_threshold" min="1">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="edit_danger_threshold" class="form-label">危险阈值(天)</label>
+                                <input type="number" class="form-control" id="edit_danger_threshold" name="danger_threshold" min="1">
+                            </div>
+                        </div>
+                        <!-- 在编辑域名模态框中添加续费URL字段 -->
+                        <div class="mb-3">
+                            <label for="edit_renewal_url" class="form-label">续费网址</label>
+                            <input type="url" class="form-control" id="edit_renewal_url" name="renewal_url" placeholder="https://...">
+                        </div>
+
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">更新</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
