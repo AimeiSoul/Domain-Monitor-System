@@ -16,13 +16,34 @@
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
                 <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Logo" height="30" class="d-inline-block align-text-top">
-                域名监控
+                <span class="brand-text">域名监控</span>
             </a>
-            <div class="navbar-nav ms-auto">
-                <span class="navbar-text me-3">欢迎, {{ session.username }}</span>
-                <a class="nav-link" href="{{ url_for('dashboard') }}">仪表盘</a>
-                <a class="nav-link" href="{{ url_for('index') }}">首页</a>
-                <a class="nav-link" href="{{ url_for('logout') }}">退出</a>
+
+            <!-- 汉堡菜单按钮 - 登录后显示 -->
+            {% if session.username %}
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            {% endif %}
+
+            <div class="{% if session.username %}collapse navbar-collapse{% endif %}" id="navbarCollapse">
+                <div class="navbar-nav ms-auto">
+                    {% if session.username %}
+                    <!-- 登录后的导航项 -->
+                    <div class="d-flex flex-column flex-lg-row align-items-lg-center">
+                        <span class="navbar-text me-lg-3 mb-2 mb-lg-0">欢迎, {{ session.username }}</span>
+                        <div class="d-flex flex-wrap">
+                            {% if session.username == 'admin' %}
+                            <a class="nav-link px-2 py-1" href="{{ url_for('smtp_config') }}">SMTP配置</a>
+                            {% endif %}
+                            <a class="nav-link px-2 py-1" href="{{ url_for('dashboard') }}">仪表盘</a>
+                            <a class="nav-link px-2 py-1" href="{{ url_for('logout') }}">退出</a>
+                        </div>
+                    </div>
+                    {% else %}
+                        <a class="nav-link" href="{{ url_for('login') }}">登录</a>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </nav>
