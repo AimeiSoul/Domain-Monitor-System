@@ -18,10 +18,24 @@
 }
 
 body {
-    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-    background-color: var(--light-bg);
-    color: var(--dark-text);
-    line-height: 1.6;
+    position: relative;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* 使用伪元素创建固定背景层 */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
 }
 
 /* 导航栏样式 */
@@ -376,22 +390,42 @@ h1:after {
 
 /* PC端背景 */
 @media (min-width: 992px) {
-    body {
-        background: url('../img/pc.jpg') no-repeat center center fixed;
-        background-size: cover;
+    body::before {
+        background-image: url('../img/pc.jpg');
     }
     
     .domain-card {
         backdrop-filter: blur(10px);
         background-color: rgba(255, 255, 255, 0.95);
     }
+
+    .navbar-text {
+        display: block !important;
+    }
 }
 
 /* 移动端背景 */
 @media (max-width: 991px) {
+    body::before {
+        background-image: url('../img/pe.jpg');
+    }
+    
+    /* 移除之前的body背景设置 */
     body {
-        background: url('../img/pe.jpg') no-repeat center center fixed;
-        background-size: cover;
+        background: none;
+    }
+    
+    /* 优化移动端性能 */
+    body::before {
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+}
+
+/* 针对iOS Safari的特殊处理 */
+@supports (-webkit-touch-callout: none) {
+    body::before {
+        background-attachment: scroll;
     }
 }
 
@@ -401,7 +435,7 @@ h1:after {
 @media (max-width: 991px) {
     /* 品牌文字在手机端隐藏，只显示Logo */
     .brand-text {
-        display: none;
+        display: inline;
     }
     
     /* 导航栏高度优化 */
@@ -434,10 +468,7 @@ h1:after {
     }
     
     .navbar-text {
-        color: #ecf0f1 !important;
-        font-size: 0.9rem;
-        margin-bottom: 0.5rem;
-        text-align: center;
+        display: none !important;
     }
     
     .nav-link {
