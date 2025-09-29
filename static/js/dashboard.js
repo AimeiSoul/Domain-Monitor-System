@@ -160,4 +160,110 @@ document.addEventListener('DOMContentLoaded', function() {
             console.warn(`Element with ID '${elementId}' not found`);
         }
     }
+
+    // 续费功能
+    const renewButtons = document.querySelectorAll('.renew-domain');
+    const renewConfirmModal = new bootstrap.Modal(document.getElementById('renewConfirmModal'));
+    const confirmRenewalBtn = document.getElementById('confirmRenewalBtn');
+    const renewalConfirmedCheckbox = document.getElementById('renewalConfirmed');
+    
+    // 续费按钮点击事件
+    renewButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault(); // 阻止默认的链接跳转
+            
+            const domainId = this.getAttribute('data-domain-id');
+            const domainName = this.getAttribute('data-domain-name');
+            const renewalPeriod = this.getAttribute('data-renewal-period');
+            const currentExpiration = this.getAttribute('data-current-expiration');
+            
+            // 打开续费网址在新标签页
+            window.open(this.href, '_blank');
+            
+            // 填充模态框数据
+            document.getElementById('renew_domain_id').value = domainId;
+            document.getElementById('renew_domain_name').value = domainName;
+            document.getElementById('renew_renewal_period').value = renewalPeriod;
+            document.getElementById('renew_current_expiration').value = currentExpiration;
+            
+            // 显示域名信息
+            document.getElementById('renew_domain_name_display').textContent = domainName;
+            document.getElementById('renew_renewal_period_display').textContent = renewalPeriod;
+            document.getElementById('renew_current_expiration_display').textContent = currentExpiration;
+            
+            // 计算并显示新的到期日期
+            const newExpiration = calculateNewExpirationDate(currentExpiration, renewalPeriod);
+            document.getElementById('renew_new_expiration_display').textContent = newExpiration;
+            
+            // 重置确认状态
+            renewalConfirmedCheckbox.checked = false;
+            confirmRenewalBtn.disabled = true;
+            
+            // 显示确认模态框
+            renewConfirmModal.show();
+        });
+    });
+    
+    // 确认复选框状态改变事件
+    renewalConfirmedCheckbox.addEventListener('change', function() {
+        confirmRenewalBtn.disabled = !this.checked;
+    });
+    
+    // 确认续费按钮点击事件
+    confirmRenewalBtn.addEventListener('click', function() {
+        const domainId = document.getElementById('renew_domain_id').value;
+        const domainName = document.getElementById('renew_domain_name').value;
+        const renewalPeriod = document.getElementById('renew_renewal_period').value;
+        const currentExpiration = document.getElementById('renew_current_expiration').value;
+        const newExpiration = calculateNewExpirationDate(currentExpiration, renewalPeriod);
+        
+        if (confirm(`确定要更新域名 ${domainName} 的到期日期为 ${newExpiration} 吗？`)) {
+            // 发送续费请求
+            fetch(`/renew_domain/${domainId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    new_expiration_date: newExpiration
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('域名续费成功！到期日期已更新。');
+                    renewConfirmModal.hide();
+                    window.location.reload(); // 刷新页面显示新日期
+                } else {
+                    alert('续费失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('续费失败，请重试');
+            });
+        }
+    });
+    
+    // 计算新的到期日期函数
+    function calculateNewExpirationDate(currentDate, renewalPeriod) {
+        const current = new Date(currentDate);
+        let yearsToAdd = 1; // 默认1年
+        
+        // 从续费周期中提取年数
+        if (renewalPeriod) {
+            const match = renewalPeriod.match(/(\d+)/);
+            if (match) {
+                yearsToAdd = parseInt(match[1]);
+            }
+        }
+        
+        // 添加年数
+        const newDate = new Date(current);
+        newDate.setFullYear(current.getFullYear() + yearsToAdd);
+        
+        // 格式化为 YYYY-MM-DD
+        return newDate.toISOString().split('T')[0];
+    }
+
 });
