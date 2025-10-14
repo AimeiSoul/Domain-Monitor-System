@@ -56,6 +56,7 @@ class Domain(db.Model):
     renewal_period = db.Column(db.String(50))
     renewal_price = db.Column(db.String(255))
     renewal_url = db.Column(db.String(500))
+    renewal_date = db.Column(db.DateTime)  # 续费日期
     currency = db.Column(db.String(10), default='USD')
     warning_threshold = db.Column(db.Integer, default=30)
     danger_threshold = db.Column(db.Integer, default=7)
@@ -85,8 +86,10 @@ class Domain(db.Model):
             return 'success'
     
     def progress_percentage(self):
-        if self.registration_date and self.expiration_date:
-            total_days = (self.expiration_date - self.registration_date).days
+        """计算域名有效期的进度百分比"""
+        if self.renewal_date and self.expiration_date:
+            # 使用续费日期作为起始点计算进度
+            total_days = (self.expiration_date - self.renewal_date).days
             remaining_days = self.days_remaining()
             if total_days > 0:
                 return round((remaining_days / total_days) * 100, 1)
@@ -154,6 +157,7 @@ def create_email_template(domain, days_remaining, alert_level):
     
     # 格式化日期
     expiration_date = domain.expiration_date.strftime('%Y年%m月%d日')
+    renewal_date = domain.renewal_date.strftime('%Y年%m月%d日') if domain.renewal_date else "未知"
     current_date = datetime.now().strftime('%Y年%m月%d日 %H:%M')
     
     # 创建续费链接
@@ -297,12 +301,12 @@ def create_email_template(domain, days_remaining, alert_level):
                     <div class="detail-value">{domain.registrar or '未知'}</div>
                 </div>
                 <div class="detail-item">
-                    <div class="detail-label">到期日期</div>
-                    <div class="detail-value">{expiration_date}</div>
+                    <div class="detail-label">续费日期</div>
+                    <div class="detail-value">{renewal_date}</div>
                 </div>
                 <div class="detail-item">
-                    <div class="detail-label">当前状态</div>
-                    <div class="detail-value">{alert_level.upper()} 级别</div>
+                    <div class="detail-label">到期日期</div>
+                    <div class="detail-value">{expiration_date}</div>
                 </div>
             </div>
             
@@ -466,6 +470,8 @@ def check_domain_expiry():
                 print(f"  警告阈值: {domain.warning_threshold}")
                 print(f"  危险邮件已发送: {domain.danger_sent}")
                 print(f"  警告邮件已发送: {domain.warning_sent}")
+                print(f"  续费日期: {domain.renewal_date}")
+                print(f"  到期日期: {domain.expiration_date}")
                 
                 # 检查是否需要发送提醒
                 if days_remaining <= domain.danger_threshold:
@@ -772,7 +778,9 @@ def add_domain():
             renewal_price=renewal_price,
             renewal_url=renewal_url,
             currency=currency,
-            user_id=session['user_id']
+            user_id=session['user_id'],
+            # 设置续费日期为注册日期
+            renewal_date=registration_date if registration_date else datetime.utcnow()
         )
         
         db.session.add(new_domain)
@@ -793,6 +801,9 @@ def update_domain(domain_id):
         if domain.user_id != session['user_id']:
             return jsonify({'success': False, 'message': '无权操作'})
         
+        # 记录旧的注册日期，用于比较
+        old_registration_date = domain.registration_date
+        
         # 更新域名信息
         domain.name = request.form.get('name')
         domain.registrar = request.form.get('registrar')
@@ -809,6 +820,14 @@ def update_domain(domain_id):
         domain.currency = request.form.get('currency', 'USD')
         domain.warning_threshold = int(request.form.get('warning_threshold', 30))
         domain.danger_threshold = int(request.form.get('danger_threshold', 7))
+        
+        # 只有当注册日期确实发生变化时，才更新续费日期
+        if registration_date_str:
+            new_registration_date = datetime.strptime(registration_date_str, '%Y-%m-%d')
+            # 只有当新的注册日期与旧的注册日期不同时，才更新 renewal_date
+            if old_registration_date != new_registration_date:
+                domain.renewal_date = new_registration_date
+                print(f"注册日期发生变化，更新 renewal_date 为: {domain.renewal_date}")
         
         db.session.commit()
         
@@ -860,7 +879,8 @@ def domain_data(domain_id):
                 'renewal_url': domain.renewal_url,
                 'currency': domain.currency,
                 'warning_threshold': domain.warning_threshold,
-                'danger_threshold': domain.danger_threshold
+                'danger_threshold': domain.danger_threshold,
+                'renewal_date': domain.renewal_date.strftime('%Y-%m-%d') if domain.renewal_date else ''
             }
         })
     except Exception as e:
@@ -882,20 +902,22 @@ def renew_domain(domain_id):
         if domain.user_id != session['user_id']:
             return jsonify({'success': False, 'message': '无权操作此域名'})
         
-        # 解析新的到期日期 - 修复日期处理
+        # 解析新的到期日期
         new_expiration_str = data['new_expiration_date']
         try:
             new_expiration = datetime.strptime(new_expiration_str, '%Y-%m-%d')
         except ValueError:
             return jsonify({'success': False, 'message': '无效的日期格式'})
         
-        # 记录旧的到期日期
+        # 记录旧的到期日期和续费日期
         old_expiration = domain.expiration_date
+        old_renewal_date = domain.renewal_date
         
-        # 更新到期日期并重置邮件发送状态
+        # 更新到期日期和续费日期
         domain.expiration_date = new_expiration
+        domain.renewal_date = datetime.utcnow()  # 续费日期设置为当前日期
         
-        # 安全地重置邮件发送状态
+        # 重置邮件发送状态
         if hasattr(domain, 'warning_sent'):
             domain.warning_sent = False
         if hasattr(domain, 'danger_sent'):
@@ -906,7 +928,7 @@ def renew_domain(domain_id):
         db.session.commit()
         
         # 记录续费操作日志
-        logger.info(f"域名续费成功 - 域名: {domain.name}, 旧到期日: {old_expiration.strftime('%Y-%m-%d')}, 新到期日: {new_expiration.strftime('%Y-%m-%d')}, 操作人: {session.get('username')}")
+        logger.info(f"域名续费成功 - 域名: {domain.name}, 旧到期日: {old_expiration.strftime('%Y-%m-%d')}, 新到期日: {new_expiration.strftime('%Y-%m-%d')}, 旧续费日: {old_renewal_date.strftime('%Y-%m-%d') if old_renewal_date else '无'}, 新续费日: {domain.renewal_date.strftime('%Y-%m-%d')}, 操作人: {session.get('username')}")
         
         return jsonify({
             'success': True, 
@@ -914,7 +936,8 @@ def renew_domain(domain_id):
             'domain': {
                 'name': domain.name,
                 'old_expiration': old_expiration.strftime('%Y-%m-%d'),
-                'new_expiration': new_expiration.strftime('%Y-%m-%d')
+                'new_expiration': new_expiration.strftime('%Y-%m-%d'),
+                'renewal_date': domain.renewal_date.strftime('%Y-%m-%d')
             }
         })
         
@@ -952,7 +975,7 @@ def trigger_domain_check():
         
         for domain in domains:
             days_remaining = domain.days_remaining()
-            print(f"  域名: {domain.name}, 剩余天数: {days_remaining}, 警告阈值: {domain.warning_threshold}, 危险阈值: {domain.danger_threshold}")
+            print(f"  域名: {domain.name}, 剩余天数: {days_remaining}, 续费日期: {domain.renewal_date}, 到期日期: {domain.expiration_date}")
         
         # 执行检查
         check_domain_expiry()
@@ -1214,6 +1237,16 @@ def migrate_database():
             if 'last_checked' not in columns:
                 print("添加 last_checked 字段...")
                 db.engine.execute('ALTER TABLE domain ADD COLUMN last_checked DATETIME')
+            
+            # 为现有域名设置renewal_date
+            domains = Domain.query.all()
+            for domain in domains:
+                if not domain.renewal_date:
+                    # 如果renewal_date为空，设置为registration_date或当前日期
+                    domain.renewal_date = domain.registration_date if domain.registration_date else datetime.utcnow()
+                    print(f"设置域名 {domain.name} 的renewal_date为: {domain.renewal_date}")
+            
+            db.session.commit()
             
             # 验证迁移结果
             inspector = db.inspect(db.engine)
