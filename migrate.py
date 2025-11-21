@@ -44,7 +44,7 @@ def migrate_database():
     with app.app_context():
         try:
             # 检查数据库文件是否存在
-            if not os.path.exists('domain.db'):
+            if not os.path.exists('instance/domain.db'):
                 print("=" * 60)
                 print("❌ 数据库文件 domain.db 不存在")
                 print("=" * 60)
