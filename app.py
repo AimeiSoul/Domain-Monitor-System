@@ -1242,64 +1242,31 @@ def setup_scheduler():
         traceback.print_exc()
         return None
 
-# 数据库迁移函数
-def migrate_database():
-    """迁移数据库，添加缺失的字段"""
-    with app.app_context():
-        try:
-            print("开始数据库迁移...")
-            
-            # 检查表结构
-            inspector = db.inspect(db.engine)
-            columns = [col['name'] for col in inspector.get_columns('domain')]
-            print(f"当前domain表的列: {columns}")
-            
-            # 添加缺失的字段
-            if 'warning_sent' not in columns:
-                print("添加 warning_sent 字段...")
-                db.engine.execute('ALTER TABLE domain ADD COLUMN warning_sent BOOLEAN DEFAULT FALSE')
-            
-            if 'danger_sent' not in columns:
-                print("添加 danger_sent 字段...")
-                db.engine.execute('ALTER TABLE domain ADD COLUMN danger_sent BOOLEAN DEFAULT FALSE')
-                
-            if 'last_checked' not in columns:
-                print("添加 last_checked 字段...")
-                db.engine.execute('ALTER TABLE domain ADD COLUMN last_checked DATETIME')
-            
-            if 'needs_renewal' not in columns:
-                print("添加 needs_renewal 字段...")
-                db.engine.execute('ALTER TABLE domain ADD COLUMN needs_renewal BOOLEAN DEFAULT TRUE')
-            
-            # 为现有域名设置renewal_date
-            domains = Domain.query.all()
-            for domain in domains:
-                if not domain.renewal_date:
-                    # 如果renewal_date为空，设置为registration_date或当前日期
-                    domain.renewal_date = domain.registration_date if domain.registration_date else datetime.utcnow()
-                    print(f"设置域名 {domain.name} 的renewal_date为: {domain.renewal_date}")
-            
-            db.session.commit()
-            
-            # 验证迁移结果
-            inspector = db.inspect(db.engine)
-            new_columns = [col['name'] for col in inspector.get_columns('domain')]
-            print(f"迁移后domain表的列: {new_columns}")
-            
-            print("数据库迁移完成!")
-            
-        except Exception as e:
-            print(f"数据库迁移失败: {e}")
-            import traceback
-            traceback.print_exc()
 
 if __name__ == '__main__':
     # 初始化数据库
     if not os.path.exists('domain.db'):
         init_db()
     else:
-        # 运行数据库迁移
-        migrate_database()
+        # 检查是否需要迁移
+        try:
+            with app.app_context():
+                inspector = db.inspect(db.engine)
+                columns = [col['name'] for col in inspector.get_columns('domain')]
+                if 'needs_renewal' not in columns:
+                    print("\n" + "=" * 60)
+                    print("⚠️  检测到数据库需要迁移！")
+                    print("=" * 60)
+                    print("请先运行以下命令进行数据库迁移：")
+                    print("  python migrate.py")
+                    print("=" * 60)
+                    print("迁移完成后，再运行 app.py 启动应用")
+                    print("=" * 60 + "\n")
+                    exit(1)
+        except Exception as e:
+            print(f"⚠️  检查数据库结构时出错: {e}")
+            print("如果这是首次运行，请删除 domain.db 后重新运行")
+            exit(1)
     
     # 设置定时任务
     scheduler = setup_scheduler()
