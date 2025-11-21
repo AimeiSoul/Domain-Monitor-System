@@ -63,9 +63,17 @@
                 <div class="card domain-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="card-title">{{ domain.name }}</h5>
+                            <h5 class="card-title">
+                                {{ domain.name }}
+                                {% if not domain.needs_renewal %}
+                                <span class="badge bg-info ms-2" title="永久域名，无需续期">
+                                    <i class="bi bi-infinity"></i> 永久
+                                </span>
+                                {% endif %}
+                            </h5>
                             <span class="badge bg-{{ domain.status() }}">
-                                {% if domain.status() == 'success' %}正常
+                                {% if domain.status() == 'info' %}永久
+                                {% elif domain.status() == 'success' %}正常
                                 {% elif domain.status() == 'warning' %}警告
                                 {% else %}危险
                                 {% endif %}
@@ -73,10 +81,17 @@
                         </div>
                         
                         <div class="progress-container">
+                            {% if domain.needs_renewal %}
                             <div class="progress-circle" data-percent="{{ domain.progress_percentage() }}" data-status="{{ domain.status() }}">
                                 <span class="progress-text">{{ domain.progress_percentage() }}%</span>
                             </div>
                             <div>剩余 {{ domain.days_remaining() }} 天</div>
+                            {% else %}
+                            <div class="progress-circle" data-percent="100" data-status="info">
+                                <span class="progress-text">∞</span>
+                            </div>
+                            <div>永久有效</div>
+                            {% endif %}
                         </div>
                         
                         <div class="domain-details">
@@ -93,18 +108,20 @@
                             <button class="btn btn-outline-primary edit-domain" data-domain-id="{{ domain.id }}" data-bs-toggle="modal" data-bs-target="#editDomainModal">
                                 <i class="bi bi-pencil"></i> 编辑
                             </button>
-                            {% if domain.renewal_url %}
-                            <a href="{{ domain.renewal_url }}" target="_blank" class="btn btn-outline-success renew-domain" 
-                                data-domain-id="{{ domain.id }}" 
-                                data-domain-name="{{ domain.name }}"
-                                data-renewal-period="{{ domain.renewal_period }}"
-                                data-current-expiration="{{ domain.expiration_date.strftime('%Y-%m-%d') }}">
-                                <i class="bi bi-arrow-repeat"></i> 续费
-                            </a>
-                            {% else %}
-                            <button class="btn btn-outline-secondary" disabled>
-                                <i class="bi bi-arrow-repeat"></i> 续费
-                            </button>
+                            {% if domain.needs_renewal %}
+                                {% if domain.renewal_url %}
+                                <a href="{{ domain.renewal_url }}" target="_blank" class="btn btn-outline-success renew-domain" 
+                                    data-domain-id="{{ domain.id }}" 
+                                    data-domain-name="{{ domain.name }}"
+                                    data-renewal-period="{{ domain.renewal_period }}"
+                                    data-current-expiration="{{ domain.expiration_date.strftime('%Y-%m-%d') }}">
+                                    <i class="bi bi-arrow-repeat"></i> 续费
+                                </a>
+                                {% else %}
+                                <button class="btn btn-outline-secondary" disabled>
+                                    <i class="bi bi-arrow-repeat"></i> 续费
+                                </button>
+                                {% endif %}
                             {% endif %}
                             <button class="btn btn-outline-danger delete-domain" data-domain-id="{{ domain.id }}">
                                 <i class="bi bi-trash"></i> 删除
@@ -182,6 +199,15 @@
                             <label for="renewal_url" class="form-label">续费网址</label>
                             <input type="url" class="form-control" id="renewal_url" name="renewal_url" placeholder="https://...">
                         </div>
+                        <!-- 是否需要续期选项 -->
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="needs_renewal" name="needs_renewal" checked>
+                                <label class="form-check-label" for="needs_renewal">
+                                    需要续期（取消勾选表示永久域名，无需续期）
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
@@ -253,6 +279,15 @@
                         <div class="mb-3">
                             <label for="edit_renewal_url" class="form-label">续费网址</label>
                             <input type="url" class="form-control" id="edit_renewal_url" name="renewal_url" placeholder="https://...">
+                        </div>
+                        <!-- 是否需要续期选项 -->
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="edit_needs_renewal" name="needs_renewal">
+                                <label class="form-check-label" for="edit_needs_renewal">
+                                    需要续期（取消勾选表示永久域名，无需续期）
+                                </label>
+                            </div>
                         </div>
 
                     </div>

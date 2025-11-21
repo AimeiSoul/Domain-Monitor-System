@@ -58,9 +58,17 @@
                 <div class="card domain-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h5 class="card-title">{{ domain.name }}</h5>
+                            <h5 class="card-title">
+                                {{ domain.name }}
+                                {% if not domain.needs_renewal %}
+                                <span class="badge bg-info ms-2" title="永久域名，无需续期">
+                                    <i class="bi bi-infinity"></i> 永久
+                                </span>
+                                {% endif %}
+                            </h5>
                             <span class="badge bg-{{ domain.status() }}">
-                                {% if domain.status() == 'success' %}正常
+                                {% if domain.status() == 'info' %}永久
+                                {% elif domain.status() == 'success' %}正常
                                 {% elif domain.status() == 'warning' %}警告
                                 {% else %}危险
                                 {% endif %}
@@ -68,10 +76,17 @@
                         </div>
                         
                         <div class="progress-container">
+                            {% if domain.needs_renewal %}
                             <div class="progress-circle" data-percent="{{ domain.progress_percentage() }}" data-status="{{ domain.status() }}">
                                 <span class="progress-text">{{ domain.progress_percentage() }}%</span>
                             </div>
                             <div>剩余 {{ domain.days_remaining() }} 天</div>
+                            {% else %}
+                            <div class="progress-circle" data-percent="100" data-status="info">
+                                <span class="progress-text">∞</span>
+                            </div>
+                            <div>永久有效</div>
+                            {% endif %}
                         </div>
 
                         <!-- 在Index页面中保持折叠按钮和折叠内容 -->
@@ -86,6 +101,8 @@
                                 <p><strong>到期日期:</strong> {{ domain.expiration_date.strftime('%Y-%m-%d') }}</p>
                                 <p><strong>续费周期:</strong> {{ domain.renewal_period or '未知' }}</p>
                                 <p><strong>续费价格:</strong> {{ domain.renewal_price or '未知' }} {{ domain.currency }}</p>
+                                <p><strong>警告阈值:</strong> {{ domain.warning_threshold }} 天</p>
+                                <p><strong>危险阈值:</strong> {{ domain.danger_threshold }} 天</p>
                             </div>
                         </div>
                     </div>

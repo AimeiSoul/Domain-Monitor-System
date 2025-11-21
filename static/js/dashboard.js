@@ -1,5 +1,69 @@
 // 仪表盘特定功能
 document.addEventListener('DOMContentLoaded', function() {
+    // 处理"是否需要续期"复选框的交互
+    const needsRenewalCheckbox = document.getElementById('needs_renewal');
+    const editNeedsRenewalCheckbox = document.getElementById('edit_needs_renewal');
+    const expirationDateInput = document.getElementById('expiration_date');
+    const editExpirationDateInput = document.getElementById('edit_expiration_date');
+    
+    // 添加域名表单中的交互
+    if (needsRenewalCheckbox && expirationDateInput) {
+        needsRenewalCheckbox.addEventListener('change', function() {
+            const renewalPeriodInput = document.getElementById('renewal_period');
+            const renewalPriceInput = document.getElementById('renewal_price');
+            
+            if (!this.checked) {
+                // 永久域名，到期日期变为可选
+                expirationDateInput.removeAttribute('required');
+                expirationDateInput.closest('.mb-3').querySelector('label').innerHTML = 
+                    '到期日期 <span class="text-muted">(可选)</span>';
+                
+                // 自动设置续费周期和续费价格为0（警告阈值和危险阈值保持默认值）
+                if (renewalPeriodInput) renewalPeriodInput.value = '0';
+                if (renewalPriceInput) renewalPriceInput.value = '0';
+            } else {
+                // 需要续期，到期日期必填
+                expirationDateInput.setAttribute('required', 'required');
+                expirationDateInput.closest('.mb-3').querySelector('label').textContent = '到期日期';
+                
+                // 恢复默认值
+                if (renewalPeriodInput) renewalPeriodInput.value = '';
+                if (renewalPriceInput) renewalPriceInput.value = '';
+            }
+        });
+    }
+    
+    // 编辑域名表单中的交互
+    if (editNeedsRenewalCheckbox && editExpirationDateInput) {
+        editNeedsRenewalCheckbox.addEventListener('change', function() {
+            const editRenewalPeriodInput = document.getElementById('edit_renewal_period');
+            const editRenewalPriceInput = document.getElementById('edit_renewal_price');
+            
+            if (!this.checked) {
+                // 永久域名，到期日期变为可选
+                editExpirationDateInput.removeAttribute('required');
+                editExpirationDateInput.closest('.mb-3').querySelector('label').innerHTML = 
+                    '到期日期 <span class="text-muted">(可选)</span>';
+                
+                // 自动设置续费周期和续费价格为0（警告阈值和危险阈值保持默认值）
+                if (editRenewalPeriodInput) editRenewalPeriodInput.value = '0';
+                if (editRenewalPriceInput) editRenewalPriceInput.value = '0';
+            } else {
+                // 需要续期，到期日期必填
+                editExpirationDateInput.setAttribute('required', 'required');
+                editExpirationDateInput.closest('.mb-3').querySelector('label').textContent = '到期日期';
+                
+                // 恢复默认值（如果之前是0，则恢复为空）
+                if (editRenewalPeriodInput && editRenewalPeriodInput.value === '0') {
+                    editRenewalPeriodInput.value = '';
+                }
+                if (editRenewalPriceInput && editRenewalPriceInput.value === '0') {
+                    editRenewalPriceInput.value = '';
+                }
+            }
+        });
+    }
+    
     // 添加域名表单提交
     const addDomainForm = document.getElementById('addDomainForm');
     if (addDomainForm) {
@@ -78,6 +142,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     setFormValue('edit_renewal_url', domain.renewal_url || '');
                     setFormValue('edit_warning_threshold', domain.warning_threshold);
                     setFormValue('edit_danger_threshold', domain.danger_threshold);
+                    // 设置是否需要续期
+                    const needsRenewalCheckbox = document.getElementById('edit_needs_renewal');
+                    if (needsRenewalCheckbox) {
+                        needsRenewalCheckbox.checked = domain.needs_renewal !== false;
+                        // 如果是永久域名，只设置续费周期和续费价格为0（警告阈值和危险阈值保持原值）
+                        if (!needsRenewalCheckbox.checked) {
+                            setFormValue('edit_renewal_period', '0');
+                            setFormValue('edit_renewal_price', '0');
+                        }
+                        // 触发change事件以更新到期日期字段的必填状态
+                        needsRenewalCheckbox.dispatchEvent(new Event('change'));
+                    }
                 } else {
                     alert('获取域名数据失败: ' + data.message);
                 }

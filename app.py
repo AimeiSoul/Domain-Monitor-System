@@ -66,17 +66,24 @@ class Domain(db.Model):
     warning_sent = db.Column(db.Boolean, default=False)
     danger_sent = db.Column(db.Boolean, default=False)
     last_checked = db.Column(db.DateTime, default=datetime.utcnow)
+    # 是否需要续期（永久域名不需要续期）
+    needs_renewal = db.Column(db.Boolean, default=True)
     
     def __repr__(self):
         return f'<Domain {self.name}>'
     
     def days_remaining(self):
+        if not self.needs_renewal:
+            # 永久域名返回一个很大的数字
+            return 999999
         if self.expiration_date:
             remaining = (self.expiration_date - datetime.utcnow()).days
             return max(0, remaining)
         return 0
     
     def status(self):
+        if not self.needs_renewal:
+            return 'info'  # 永久域名使用info状态
         days = self.days_remaining()
         if days <= self.danger_threshold:
             return 'danger'
@@ -463,6 +470,12 @@ def check_domain_expiry():
         sent_count = 0
         for domain in domains:
             try:
+                # 跳过永久域名
+                if not domain.needs_renewal:
+                    print(f"\n📋 检查域名: {domain.name}")
+                    print(f"  ℹ️ 永久域名，跳过检查")
+                    continue
+                
                 days_remaining = domain.days_remaining()
                 print(f"\n📋 检查域名: {domain.name}")
                 print(f"  剩余天数: {days_remaining}")
@@ -761,12 +774,19 @@ def add_domain():
         expiration_date_str = request.form.get('expiration_date')
         
         registration_date = datetime.strptime(registration_date_str, '%Y-%m-%d') if registration_date_str else None
-        expiration_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
+        # 永久域名可以不填到期日期，使用一个很远的日期
+        if expiration_date_str:
+            expiration_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
+        else:
+            # 如果没有填写到期日期，设置为一个很远的日期（100年后）
+            expiration_date = datetime.utcnow() + timedelta(days=36500)
         
         renewal_period = request.form.get('renewal_period')
         renewal_price = request.form.get('renewal_price')
         renewal_url = request.form.get('renewal_url')
         currency = request.form.get('currency', 'USD')
+        # 获取是否需要续期（默认为True）
+        needs_renewal = request.form.get('needs_renewal') == 'true' or request.form.get('needs_renewal') == 'on'
 
         # 创建新域名
         new_domain = Domain(
@@ -779,6 +799,7 @@ def add_domain():
             renewal_url=renewal_url,
             currency=currency,
             user_id=session['user_id'],
+            needs_renewal=needs_renewal,
             # 设置续费日期为注册日期
             renewal_date=registration_date if registration_date else datetime.utcnow()
         )
@@ -812,7 +833,12 @@ def update_domain(domain_id):
         expiration_date_str = request.form.get('expiration_date')
         
         domain.registration_date = datetime.strptime(registration_date_str, '%Y-%m-%d') if registration_date_str else None
-        domain.expiration_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
+        # 永久域名可以不填到期日期，使用一个很远的日期
+        if expiration_date_str:
+            domain.expiration_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
+        else:
+            # 如果没有填写到期日期，设置为一个很远的日期（100年后）
+            domain.expiration_date = datetime.utcnow() + timedelta(days=36500)
         
         domain.renewal_period = request.form.get('renewal_period')
         domain.renewal_price = request.form.get('renewal_price')
@@ -820,6 +846,8 @@ def update_domain(domain_id):
         domain.currency = request.form.get('currency', 'USD')
         domain.warning_threshold = int(request.form.get('warning_threshold', 30))
         domain.danger_threshold = int(request.form.get('danger_threshold', 7))
+        # 更新是否需要续期
+        domain.needs_renewal = request.form.get('needs_renewal') == 'true' or request.form.get('needs_renewal') == 'on'
         
         # 只有当注册日期确实发生变化时，才更新续费日期
         if registration_date_str:
@@ -880,7 +908,8 @@ def domain_data(domain_id):
                 'currency': domain.currency,
                 'warning_threshold': domain.warning_threshold,
                 'danger_threshold': domain.danger_threshold,
-                'renewal_date': domain.renewal_date.strftime('%Y-%m-%d') if domain.renewal_date else ''
+                'renewal_date': domain.renewal_date.strftime('%Y-%m-%d') if domain.renewal_date else '',
+                'needs_renewal': domain.needs_renewal
             }
         })
     except Exception as e:
@@ -1237,6 +1266,10 @@ def migrate_database():
             if 'last_checked' not in columns:
                 print("添加 last_checked 字段...")
                 db.engine.execute('ALTER TABLE domain ADD COLUMN last_checked DATETIME')
+            
+            if 'needs_renewal' not in columns:
+                print("添加 needs_renewal 字段...")
+                db.engine.execute('ALTER TABLE domain ADD COLUMN needs_renewal BOOLEAN DEFAULT TRUE')
             
             # 为现有域名设置renewal_date
             domains = Domain.query.all()
