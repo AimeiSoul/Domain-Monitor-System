@@ -69,7 +69,7 @@ app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.run(host="0.0.0.0", port=8000, debug=True)
 ```
 
-在`init_db.py`和`app.py`中，修改`password`,修改为你想要的密码，因自用为主，没有预留在网页上修改的功能，后续可自行开发PR
+在`init_db.py`中，修改`password`,修改为你想要的密码，因自用为主，没有预留在网页上修改的功能，后续可自行开发PR
 ```python
 password=generate_password_hash('admin123')
 ```
