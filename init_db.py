@@ -1,4 +1,4 @@
-from app import app, db, User
+from app import app, db, User, init_smtp_config
 from werkzeug.security import generate_password_hash
 
 def init_database():
@@ -12,7 +12,10 @@ def init_database():
             )
             db.session.add(default_user)
             db.session.commit()
-            print("默认用户已创建: admin/admin123")
+            print("默认用户已创建")
+
+        # 初始化SMTP配置
+        init_smtp_config()
         print("数据库初始化完成！")
 
 if __name__ == '__main__':

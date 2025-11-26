@@ -542,23 +542,6 @@ def check_domain_expiry():
         print(f"\n📊 域名检查完成，共安排发送 {sent_count} 封提醒邮件")
         print("=" * 60)
 
-# 初始化数据库
-def init_db():
-    with app.app_context():
-        db.create_all()
-        # 创建默认用户（如果没有的话）
-        if not User.query.filter_by(username='admin').first():
-            default_user = User(
-                username='admin', 
-                password=generate_password_hash('admin123')
-            )
-            db.session.add(default_user)
-            db.session.commit()
-            print("默认用户已创建: admin/admin123")
-        
-        # 初始化SMTP配置
-        init_smtp_config()
-
 # 路由：首页
 @app.route('/')
 def index():
@@ -1244,9 +1227,11 @@ def setup_scheduler():
 
 
 if __name__ == '__main__':
+    from init_db import init_database
+
     # 初始化数据库
     if not os.path.exists('domain.db'):
-        init_db()
+        init_database()
     else:
         # 检查是否需要迁移
         try:
