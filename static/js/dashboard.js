@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     alert('域名添加成功！');
-                    window.location.reload();
+                    window.location.replace('/dashboard');  // 修复cdn导致添加域名后405报错
                 } else {
                     alert('添加失败: ' + data.message);
                 }
