@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-from flask_sqlalchemy import SQLAlchemy
+from flask_sqlalchemy import SQLAlchemy, desc, asc
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 import math
@@ -545,7 +545,15 @@ def check_domain_expiry():
 # 路由：首页
 @app.route('/')
 def index():
-    domains = Domain.query.all()
+    domains = (
+        Domain.query
+        .order_by(
+            desc(Domain.needs_renewal),   # 需要续费的在前
+            asc(Domain.expiration_date),  # 剩余时间越短越前
+            asc(Domain.id)                # 添加顺序兜底
+        )
+        .all()
+    )
     return render_template('index.html', domains=domains, now=datetime.now())
 
 # 路由：登录页
@@ -577,7 +585,16 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    domains = Domain.query.filter_by(user_id=session['user_id']).all()
+    domains = (
+        Domain.query
+        .filter(Domain.user_id == session['user_id'])
+        .order_by(
+            desc(Domain.needs_renewal),   # 需要续费的在前
+            asc(Domain.expiration_date),  # 剩余时间越短越前
+            asc(Domain.id)                # 添加顺序兜底
+        )
+        .all()
+    )
     return render_template('dashboard.html', domains=domains, now=datetime.now())
 
 # 路由：SMTP配置页面
