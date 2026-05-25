@@ -20,6 +20,12 @@ app.config['SECRET_KEY'] = 'your-secret-key-here-change-in-production'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///domain.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    "connect_args": {
+        "check_same_thread": False
+    }
+}
+
 db = SQLAlchemy(app)
 
 # 配置日志
@@ -1273,4 +1279,4 @@ if __name__ == '__main__':
     # 设置定时任务
     scheduler = setup_scheduler()
 
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    app.run(host="0.0.0.0", port=8000, debug=True, use_reloader=False)
