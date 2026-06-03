@@ -83,9 +83,17 @@ class Domain(db.Model):
             # 永久域名返回一个很大的数字
             return 999999
         if self.expiration_date:
-            remaining = (self.expiration_date - datetime.utcnow()).days
-            return max(0, remaining)
+            return (self.expiration_date.date() - datetime.utcnow().date()).days
         return 0
+
+    def remaining_text(self):
+        """返回页面展示用的到期时间文案。"""
+        days = self.days_remaining()
+        if days < 0:
+            return f'已过期 {abs(days)} 天'
+        if days == 0:
+            return '今天到期'
+        return f'剩余 {days} 天'
     
     def status(self):
         if not self.needs_renewal:
@@ -105,7 +113,8 @@ class Domain(db.Model):
             total_days = (self.expiration_date - self.renewal_date).days
             remaining_days = self.days_remaining()
             if total_days > 0:
-                return round((remaining_days / total_days) * 100, 1)
+                percentage = (remaining_days / total_days) * 100
+                return round(max(0, min(100, percentage)), 1)
         return 0
 
 # SMTP配置模型
@@ -154,11 +163,13 @@ def create_email_template(domain, days_remaining, alert_level):
         str: 美化后的HTML邮件内容
     """
     
+    time_text = domain.remaining_text()
+
     # 根据警告级别设置颜色和标题
     if alert_level == 'danger':
         primary_color = "#dc3545"  # 红色
-        title = "【紧急】域名过期提醒"
-        urgency_text = "即将过期"
+        title = "【紧急】域名过期提醒" if days_remaining < 0 else "【紧急】域名即将过期"
+        urgency_text = "已过期" if days_remaining < 0 else "即将过期"
         action_text = "请立即续费"
         icon = "⚠️"
     else:
@@ -305,7 +316,7 @@ def create_email_template(domain, days_remaining, alert_level):
             
             <div class="domain-info">
                 <div class="domain-name">{domain.name}</div>
-                <div class="days-remaining">剩余 {days_remaining} 天</div>
+                <div class="days-remaining">{time_text}</div>
             </div>
             
             <div class="details">
@@ -445,6 +456,43 @@ def send_test_email(config, subject, recipient, body):
         traceback.print_exc()
         return False
 
+def should_send_domain_reminder(domain, days_remaining, today=None):
+    """根据当前剩余天数和上次提醒时间判断是否发送邮件。"""
+    today = today or datetime.utcnow().date()
+    last_reminder_date = domain.last_checked.date() if domain.last_checked else None
+    sent_today = last_reminder_date == today
+
+    if days_remaining < 0:
+        overdue_days = abs(days_remaining)
+        should_send = (
+            not sent_today and (
+                not domain.danger_sent or
+                overdue_days == 1 or
+                last_reminder_date is None or
+                (today - last_reminder_date).days >= 7
+            )
+        )
+        return should_send, 'danger'
+
+    if days_remaining <= domain.danger_threshold:
+        return (not domain.danger_sent or not sent_today), 'danger'
+
+    if days_remaining <= domain.warning_threshold:
+        return (not domain.warning_sent), 'warning'
+
+    return False, None
+
+def create_reminder_subject(domain, days_remaining, alert_level):
+    """创建提醒邮件标题。"""
+    if days_remaining < 0:
+        return f"【紧急】域名 {domain.name} 已过期 {abs(days_remaining)} 天"
+
+    time_text = domain.remaining_text()
+    if alert_level == 'danger':
+        return f"【紧急】域名 {domain.name} 即将过期！{time_text}"
+
+    return f"【提醒】域名 {domain.name} 即将过期，{time_text}"
+
 # 修复域名检查函数
 def check_domain_expiry():
     """检查所有域名的到期状态并发送提醒"""
@@ -492,50 +540,27 @@ def check_domain_expiry():
                 print(f"  续费日期: {domain.renewal_date}")
                 print(f"  到期日期: {domain.expiration_date}")
                 
-                # 检查是否需要发送提醒
-                if days_remaining <= domain.danger_threshold:
-                    if not domain.danger_sent:
-                        print(f"  ⚠️ 域名 {domain.name} 达到危险阈值，需要发送提醒邮件")
-                        # 发送危险级别提醒
-                        subject = f"【紧急】域名 {domain.name} 即将过期！剩余 {days_remaining} 天"
-                        
-                        # 使用美化模板
-                        body = create_email_template(domain, days_remaining, 'danger')
-                        
-                        print(f"  📤 准备发送危险提醒邮件到: {config.admin_email}")
-                        
-                        # 确保在应用上下文中调用异步邮件发送
-                        send_email_async(subject, config.admin_email, body)
-                        
-                        # 标记已发送提醒
-                        domain.danger_sent = True
-                        db.session.commit()
-                        sent_count += 1
-                        print(f"  ✅ 危险提醒邮件已安排发送 - 域名: {domain.name}")
-                    else:
-                        print(f"  ℹ️ 域名 {domain.name} 危险提醒已发送过，跳过")
-                
-                elif days_remaining <= domain.warning_threshold:
-                    if not domain.warning_sent:
-                        print(f"  ⚠️ 域名 {domain.name} 达到警告阈值，需要发送提醒邮件")
-                        # 发送警告级别提醒
-                        subject = f"【提醒】域名 {domain.name} 即将过期，剩余 {days_remaining} 天"
-                        
-                        # 使用美化模板
-                        body = create_email_template(domain, days_remaining, 'warning')
-                        
-                        print(f"  📤 准备发送警告提醒邮件到: {config.admin_email}")
-                        
-                        # 确保在应用上下文中调用异步邮件发送
-                        send_email_async(subject, config.admin_email, body)
-                        
-                        # 标记已发送提醒
+                should_send, alert_level = should_send_domain_reminder(domain, days_remaining)
+
+                if should_send:
+                    print(f"  ⚠️ 域名 {domain.name} 达到提醒条件，需要发送邮件")
+                    subject = create_reminder_subject(domain, days_remaining, alert_level)
+                    body = create_email_template(domain, days_remaining, alert_level)
+                    
+                    print(f"  📤 准备发送提醒邮件到: {config.admin_email}")
+                    send_email_async(subject, config.admin_email, body)
+                    
+                    if alert_level == 'warning':
                         domain.warning_sent = True
-                        db.session.commit()
-                        sent_count += 1
-                        print(f"  ✅ 警告提醒邮件已安排发送 - 域名: {domain.name}")
-                    else:
-                        print(f"  ℹ️ 域名 {domain.name} 警告提醒已发送过，跳过")
+                    elif alert_level == 'danger':
+                        domain.danger_sent = True
+                    domain.last_checked = datetime.utcnow()
+                    db.session.commit()
+
+                    sent_count += 1
+                    print(f"  ✅ 提醒邮件已安排发送 - 域名: {domain.name}, 类型: {alert_level}")
+                elif alert_level:
+                    print(f"  ℹ️ 域名 {domain.name} 今天或当前周期已提醒过，跳过")
                 else:
                     print(f"  ✅ 域名 {domain.name} 状态正常")
                         

@@ -80,7 +80,7 @@
                             <div class="progress-circle" data-percent="{{ domain.progress_percentage() }}" data-status="{{ domain.status() }}">
                                 <span class="progress-text">{{ domain.progress_percentage() }}%</span>
                             </div>
-                            <div>剩余 {{ domain.days_remaining() }} 天</div>
+                            <div>{{ domain.remaining_text() }}</div>
                             {% else %}
                             <div class="progress-circle" data-percent="100" data-status="info">
                                 <span class="progress-text">∞</span>
